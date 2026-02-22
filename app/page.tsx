@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
+type TaskType = 'team' | 'openclaw';
+type TaskStatus = 'backlog' | 'in-progress' | 'done';
+
 interface Task {
   id: string;
   title: string;
-  status: 'backlog' | 'in-progress' | 'done';
+  status: TaskStatus;
+  type: TaskType;
   assignee?: string;
   date?: string;
 }
@@ -20,9 +24,11 @@ interface TeamMember {
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([
-    { id: '1', title: 'Set up Team Zoom link (chadnicely.com/team)', status: 'done', date: '2026-02-16' },
-    { id: '2', title: 'Created team Kanban board', status: 'done', date: '2026-02-16' },
+    { id: '1', title: 'Set up Team Zoom link (chadnicely.com/team)', status: 'done', type: 'team', date: '2026-02-16' },
+    { id: '2', title: 'Created team Kanban board', status: 'done', type: 'team', date: '2026-02-16' },
   ]);
+
+  const [filter, setFilter] = useState<TaskType | 'all'>('all');
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     { name: 'Gaurav', role: 'Senior Developer', activeTasks: 0, completedThisWeek: 0, status: 'available' },
@@ -42,8 +48,12 @@ export default function Home() {
     minute: '2-digit',
   }));
 
-  const getTasksByStatus = (status: Task['status']) => {
-    return tasks.filter(task => task.status === status);
+  const filteredTasks = tasks.filter(task => 
+    filter === 'all' ? true : task.type === filter
+  );
+
+  const getTasksByStatus = (status: TaskStatus) => {
+    return filteredTasks.filter(task => task.status === status);
   };
 
   const getStatusColor = (status: TeamMember['status']) => {
@@ -54,6 +64,19 @@ export default function Home() {
       case 'blocked': return 'bg-red-100 text-red-800';
     }
   };
+
+  const getTypeBadge = (type: TaskType) => {
+    switch (type) {
+      case 'team': return 'bg-purple-100 text-purple-800';
+      case 'openclaw': return 'bg-blue-100 text-blue-800';
+    }
+  };
+
+  const filterOptions: { value: TaskType | 'all'; label: string }[] = [
+    { value: 'all', label: 'All Tasks' },
+    { value: 'team', label: 'Team' },
+    { value: 'openclaw', label: 'OpenClaw' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -77,6 +100,28 @@ export default function Home() {
             <p className="text-sm text-gray-700">
               <strong>How it works:</strong> After each team call, type <code className="bg-gray-200 px-2 py-1 rounded">/teamcall</code> in Telegram and Pacino will extract assignments and update this board.
             </p>
+          </div>
+        </div>
+
+        {/* Filter Toggle */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-700">Show:</span>
+            <div className="flex gap-2">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilter(option.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filter === option.value
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -137,11 +182,16 @@ export default function Home() {
               <h3 className="text-lg font-semibold text-gray-700 mb-3">📋 Backlog</h3>
               {getTasksByStatus('backlog').length === 0 ? (
                 <div className="bg-white p-4 rounded shadow text-gray-400 italic text-sm">
-                  Waiting for first team call...
+                  No tasks in backlog
                 </div>
               ) : (
                 getTasksByStatus('backlog').map(task => (
                   <div key={task.id} className="bg-white p-3 rounded shadow mb-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadge(task.type)}`}>
+                        {task.type === 'team' ? 'Team' : 'OpenClaw'}
+                      </span>
+                    </div>
                     <p className="text-sm font-medium">{task.title}</p>
                     {task.assignee && <p className="text-xs text-gray-600 mt-1">@{task.assignee}</p>}
                   </div>
@@ -154,11 +204,16 @@ export default function Home() {
               <h3 className="text-lg font-semibold text-yellow-700 mb-3">🏃 In Progress</h3>
               {getTasksByStatus('in-progress').length === 0 ? (
                 <div className="bg-white p-4 rounded shadow text-gray-400 italic text-sm">
-                  Nothing yet
+                  Nothing in progress
                 </div>
               ) : (
                 getTasksByStatus('in-progress').map(task => (
                   <div key={task.id} className="bg-white p-3 rounded shadow mb-3 border-l-4 border-yellow-500">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadge(task.type)}`}>
+                        {task.type === 'team' ? 'Team' : 'OpenClaw'}
+                      </span>
+                    </div>
                     <p className="text-sm font-medium">{task.title}</p>
                     {task.assignee && <p className="text-xs text-gray-600 mt-1">@{task.assignee}</p>}
                   </div>
@@ -176,6 +231,11 @@ export default function Home() {
               ) : (
                 getTasksByStatus('done').map(task => (
                   <div key={task.id} className="bg-white p-3 rounded shadow mb-3 border-l-4 border-green-500">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getTypeBadge(task.type)}`}>
+                        {task.type === 'team' ? 'Team' : 'OpenClaw'}
+                      </span>
+                    </div>
                     <p className="text-sm font-medium">{task.title}</p>
                     {task.date && <p className="text-xs text-gray-500 mt-1">{task.date}</p>}
                   </div>
